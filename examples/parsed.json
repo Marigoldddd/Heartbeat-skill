@@ -1,0 +1,22 @@
+[
+    {
+        "sender": "me",
+        "content": "\u65e9\u5b89\uff01",
+        "ts": "2024-01-01T08:00:00"
+    },
+    {
+        "sender": "them",
+        "content": "\u65e9\u554a\u65e9\u554a\uff01\u6211\u521a\u8d77\uff01",
+        "ts": "2024-01-01T08:05:00"
+    },
+    {
+        "sender": "me",
+        "content": "\u4eca\u5929\u5929\u6c14\u597d\u597d\uff0c\u8bb0\u5f97\u591a\u7a7f\u70b9",
+        "ts": "2024-01-22T10:00:00"
+    },
+    {
+        "sender": "them",
+        "content": "\u55ef",
+        "ts": "2024-01-22T12:00:00"
+    }
+]

@@ -1,0 +1,119 @@
+<div align="center">
+
+# Heartbeat
+
+> *"The rhythm of feelings, hidden in every 'typing...'."*
+> *Turn thousands of chat logs back into the trajectory of your resonating heartbeats.*
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://python.org)
+[![Claude Code](https://img.shields.io/badge/Claude%20Code-Skill-blueviolet)](https://claude.ai/code)
+
+[Demo](#demo) · [Features](#features) · [Installation Guide](INSTALL_EN.md) · [Quick Start](#quick-start) · [**中文**](README.md)
+
+</div>
+
+---
+
+## Demo
+
+### Dual Favorability Line Chart
+![Sample Curve](examples/sample_heartbeat.png)
+
+### Comprehensive Diagnostic Report Sample
+> **Overall Assessment**: The other party's favorability is declining, while ours remains invested. This misalignment is a common precursor to relationship deterioration.
+> **Key Time Points to Watch**: 2024-01-15: Me -5.0 / Them -22.0
+
+For a complete report example, see [examples/sample_report.md](examples/sample_report.md)
+
+---
+
+**Heartbeat** is a bidirectional favorability curve analyzer. By feeding it chat logs (WeChat, iMessage, SMS), it analyzes the emotional dynamics between you and the other person, generating a dual-line chart and a detailed diagnostic report.
+
+## Features
+
+- 📊 **Bidirectional Quantification** — Simultaneously analyzes favorability changes for both "Me" and "Them" instead of just looking at the other party.
+- 📈 **Line Chart** — Generates a dual favorability line chart segmented by week/month/day (PNG, 300 DPI).
+- 📝 **Text Report** — Relationship overview, key nodes, behavioral profiles for both sides, and overall diagnosis.
+- 🔄 **Two Modes** — Review (for ended relationships) and Track (continuous updates).
+- 💬 **Multi-format Support** — WeChat TXT/HTML/CSV, iMessage, SMS XML, plain text paste.
+
+## Quick Start
+
+### Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+> For complete Claude Code mounting steps and global setup, please refer to the **[Installation Guide](INSTALL_EN.md)**.
+
+### Usage in Claude Code
+
+```
+/heartbeat-review    ← Review an ended relationship
+/heartbeat-track     ← Track an ongoing relationship
+/heartbeat-update    ← Append new chat logs to update the curve
+/heartbeat-list      ← List all saved analysis sessions
+```
+
+## Toolchain
+
+```
+Chat Log Files
+    ↓
+tools/chat_parser.py      → parsed.json    (Bidirectional message list + feature extraction)
+    ↓
+tools/sentiment_scorer.py → scores.json    (Bidirectional favorability scores per time window)
+    ↓
+tools/heartbeat_plotter.py    → heartbeat.png      (Dual-line chart)
+tools/report_writer.py    → report.md      (Text diagnostic report)
+```
+
+## Scoring Dimensions
+
+| Dimension | Weight | Description |
+|-----------|--------|-------------|
+| Initiative | 25% | Who initiated messages / ratio of starting conversations |
+| Reply Speed | 20% | Average response latency (faster = higher score) |
+| Message Length | 15% | Average message richness (longer → more invested) |
+| Sentiment Density | 25% | Hit rate of positive/negative sentiment words |
+| Special Behaviors | 15% | Questions, emojis, affectionate nicknames |
+
+## Session File Structure
+
+```
+sessions/{slug}/
+├── heartbeat.png       ← Favorability dual-line chart
+├── report.md       ← Full analysis report
+├── scores.json     ← Time window scoring data
+├── parsed.json     ← Parsed message data
+├── meta.json       ← Session metadata
+└── history/        ← Historical backups
+    ├── heartbeat_v1.png
+    └── report_v1.md
+```
+
+## Standalone Tool Usage
+
+```bash
+# Parse bidirectional chat logs
+python3 tools/chat_parser.py --file chat.txt --me "You" --them "Them" --output parsed.json
+
+# Calculate favorability scores
+python3 tools/sentiment_scorer.py --input parsed.json --window week --output scores.json
+
+# Generate line chart
+python3 tools/heartbeat_plotter.py --scores scores.json --me "You" --them "Them" --output heartbeat.png
+
+# Generate text report
+python3 tools/report_writer.py --scores scores.json --parsed parsed.json \
+  --me "You" --them "Them" --mode review --output report.md
+```
+
+---
+
+<div align="center">
+
+*Built for use with Claude Code*
+
+</div>
