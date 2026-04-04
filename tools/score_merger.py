@@ -4,11 +4,11 @@ score_merger.py — 规则分数 + CC 语义分数融合工具
 
 用法：
     python3 score_merger.py --rule rule_scores.json --cc cc_scores.json --output scores.json
-    python3 score_merger.py --rule rule_scores.json --cc cc_scores.json --rule-weight 0.4 --output scores.json
+    python3 score_merger.py --rule rule_scores.json --cc cc_scores.json --rule-weight 0.2 --output scores.json
 
 融合策略：
     final = cc_weight * cc_score + rule_weight * rule_score
-    默认：CC 权重 0.6，规则权重 0.4
+    默认：CC 权重 0.8，规则权重 0.2
 
 当 CC 分数的 confidence="low" 时，自动提升规则权重（0.6 规则 + 0.4 CC）。
 当某方 CC 分数为 null 时，直接使用规则分数。
@@ -21,7 +21,7 @@ from pathlib import Path
 
 
 def merge_scores(rule_scores: list[dict], cc_scores: list[dict],
-                 rule_weight: float = 0.4, cc_weight: float = 0.6) -> list[dict]:
+                 rule_weight: float = 0.2, cc_weight: float = 0.8) -> list[dict]:
     # 以规则分数的窗口列表为主干，CC 分数作为补充
     cc_map = {s["window"]: s for s in cc_scores}
 
@@ -82,7 +82,7 @@ def main():
     parser = argparse.ArgumentParser(description="规则分数 + CC 语义分数融合器")
     parser.add_argument("--rule",         required=True, help="sentiment_scorer.py 输出的规则分数 JSON")
     parser.add_argument("--cc",           required=True, help="CC 语义评分 JSON")
-    parser.add_argument("--rule-weight",  type=float, default=0.4, help="规则层权重（默认 0.4）")
+    parser.add_argument("--rule-weight",  type=float, default=0.2, help="规则层权重（默认 0.2）")
     parser.add_argument("--output",       default=None, help="输出路径（默认 stdout）")
     args = parser.parse_args()
 

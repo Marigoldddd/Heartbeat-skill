@@ -1,95 +1,94 @@
 [
-    {
-        "window": "2024-W01",
-        "label": "2024-01-01",
-        "me": 85,
-        "them": 88,
-        "me_initiative": 1,
-        "them_initiative": 0.8,
-        "raw": {
-            "me_reply": 90,
-            "them_reply": 95,
-            "me_sentiment": 80,
-            "them_sentiment": 85,
-            "me_length": 70,
-            "them_length": 80
-        },
-        "events": [
-            "\u70ed\u604b\u9ad8\u5cf0"
-        ]
-    },
-    {
-        "window": "2024-W02",
-        "label": "2024-01-08",
-        "me": 80,
-        "them": 82,
-        "me_initiative": 1,
-        "them_initiative": 0.7,
-        "raw": {
-            "me_reply": 85,
-            "them_reply": 90,
-            "me_sentiment": 75,
-            "them_sentiment": 78,
-            "me_length": 65,
-            "them_length": 75
-        },
-        "events": []
-    },
-    {
-        "window": "2024-W03",
-        "label": "2024-01-15",
-        "me": 75,
-        "them": 60,
-        "me_initiative": 0.8,
-        "them_initiative": 0.4,
-        "raw": {
-            "me_reply": 80,
-            "them_reply": 60,
-            "me_sentiment": 70,
-            "them_sentiment": 55,
-            "me_length": 60,
-            "them_length": 40
-        },
-        "events": [
-            "\u26a0\ufe0f \u60c5\u611f\u9aa4\u964d"
-        ]
-    },
-    {
-        "window": "2024-W04",
-        "label": "2024-01-22",
-        "me": 72,
-        "them": 45,
-        "me_initiative": 0.9,
-        "them_initiative": 0.2,
-        "raw": {
-            "me_reply": 75,
-            "them_reply": 40,
-            "me_sentiment": 65,
-            "them_sentiment": 40,
-            "me_length": 55,
-            "them_length": 30
-        },
-        "events": [
-            "\u5f00\u59cb\u8870\u9000"
-        ]
-    },
-    {
-        "window": "2024-W05",
-        "label": "2024-01-29",
-        "me": 68,
-        "them": 30,
-        "me_initiative": 0.9,
-        "them_initiative": 0.1,
-        "raw": {
-            "me_reply": 70,
-            "them_reply": 20,
-            "me_sentiment": 55,
-            "them_sentiment": 20,
-            "me_length": 50,
-            "them_length": 20
-        },
-        "events": [
-            "\u758f\u79bb\u52a0\u5267"
-        ]
-    }
+  {
+    "window": "2024-01-01",
+    "label": "2024-01-01",
+    "me": 85.0,
+    "them": 85.0,
+    "me_msg_count": 2,
+    "them_msg_count": 2,
+    "me_initiative": 0.5,
+    "them_initiative": 0.5,
+    "events": [
+      "深夜长谈 (23:30)"
+    ],
+    "raw": {}
+  },
+  {
+    "window": "2024-01-04",
+    "label": "2024-01-04",
+    "me": 88.0,
+    "them": 60.0,
+    "me_msg_count": 2,
+    "them_msg_count": 2,
+    "me_initiative": 1.0,
+    "them_initiative": 0.0,
+    "events": [],
+    "raw": {}
+  },
+  {
+    "window": "2024-01-05",
+    "label": "2024-01-05",
+    "me": 80.0,
+    "them": 40.0,
+    "me_msg_count": 1,
+    "them_msg_count": 1,
+    "me_initiative": 1.0,
+    "them_initiative": 0.0,
+    "events": [],
+    "raw": {}
+  },
+  {
+    "window": "2024-01-09",
+    "label": "2024-01-09",
+    "me": 60.0,
+    "them": 30.0,
+    "me_msg_count": 1,
+    "them_msg_count": 0,
+    "me_initiative": 1.0,
+    "them_initiative": 0.0,
+    "events": [
+      "质问对方冷暴力"
+    ],
+    "raw": {}
+  },
+  {
+    "window": "2024-01-10",
+    "label": "2024-01-10",
+    "me": 50.0,
+    "them": 25.0,
+    "me_msg_count": 0,
+    "them_msg_count": 1,
+    "me_initiative": 0.0,
+    "them_initiative": 0.0,
+    "events": [],
+    "raw": {}
+  },
+  {
+    "window": "2024-01-14",
+    "label": "2024-01-14",
+    "me": 40.0,
+    "them": 20.0,
+    "me_msg_count": 1,
+    "them_msg_count": 0,
+    "me_initiative": 1.0,
+    "them_initiative": 0.0,
+    "events": [
+      "断联极值(4.4天)"
+    ],
+    "raw": {}
+  },
+  {
+    "window": "2024-01-15",
+    "label": "2024-01-15",
+    "me": 20.0,
+    "them": 15.0,
+    "me_msg_count": 0,
+    "them_msg_count": 1,
+    "me_initiative": 0.0,
+    "them_initiative": 0.0,
+    "events": [
+      "我方降级为朋友"
+    ],
+    "raw": {}
+  }
 ]

@@ -79,6 +79,45 @@ def generate_report(scores: list[dict], parsed: list[dict],
     them_msgs  = [m for m in parsed if m.get("sender") == "them"]
     total_msgs = len(parsed)
 
+    # ━━━ 高阶特征计算 ━━━
+    # 1. 字数信息差 (Talkativity)
+    me_chars = sum(m.get("len", 0) for m in me_msgs)
+    them_chars = sum(m.get("len", 0) for m in them_msgs)
+    
+    # 2. 深夜软肋指数 (23:00 - 05:00)
+    def is_late_night(ts_str):
+        try:
+            hour = datetime.fromisoformat(ts_str).hour
+            return hour >= 23 or hour < 5
+        except Exception:
+            return False
+    me_night   = sum(1 for m in me_msgs if is_late_night(m.get("ts", "")))
+    them_night = sum(1 for m in them_msgs if is_late_night(m.get("ts", "")))
+    me_night_ratio   = round(me_night / max(1, len(me_msgs)) * 100, 1)
+    them_night_ratio = round(them_night / max(1, len(them_msgs)) * 100, 1)
+
+    # 3. 冷战/失联探测器 (Ghosting gap)
+    max_gap_sec = 0
+    icebreaker = "无"
+    gap_desc = "无显著断联"
+    sorted_msgs = sorted(parsed, key=lambda m: m.get("ts") or "")
+    for i in range(1, len(sorted_msgs)):
+        try:
+            t1 = datetime.fromisoformat(sorted_msgs[i-1]["ts"])
+            t2 = datetime.fromisoformat(sorted_msgs[i]["ts"])
+            gap = (t2 - t1).total_seconds()
+            if gap > max_gap_sec:
+                max_gap_sec = gap
+                gap_days = gap / 86400
+                breaker_name = me_name if sorted_msgs[i].get("sender") == "me" else them_name
+                if gap_days >= 1.5:  # 大于 1.5 天才算冷战
+                    gap_desc = f"长达 {round(gap_days, 1)} 天 ({t1.strftime('%m-%d')} 至 {t2.strftime('%m-%d')})"
+                    icebreaker = breaker_name
+        except Exception:
+            pass
+    max_gap_days = round(max_gap_sec / 86400, 1)
+    # ━━━━━━━━━━━━━━━━━━━━
+
     # 时间跨度
     ts_list = [m["ts"] for m in parsed if m.get("ts")]
     if ts_list:
@@ -212,11 +251,47 @@ def generate_report(scores: list[dict], parsed: list[dict],
         f"| 主动性占比 | {me_total_initiative}% | {them_total_initiative}% |",
         f"| 回复速度评分 | {me_avg_reply} | {them_avg_reply} |",
         f"| 情感表达丰富度 | {round(more_expressive_me, 1)} | {round(more_expressive_them, 1)} |",
-        f"| 消息丰富度 | {round(longer_msg_me, 1)} | {round(longer_msg_them, 1)} |",
+        f"| 单句消息丰富度 | {round(longer_msg_me, 1)} | {round(longer_msg_them, 1)} |",
         "",
         f"- **更主动的一方**：{more_active}（更多主动发起对话）",
         f"- **情感表达更丰富**：{more_expressive}（更多正向情感词、emoji、亲昵称呼）",
-        f"- **消息内容更丰富**：{more_verbose}（平均消息更长、更详细）",
+        f"- **消息内容更丰富**：{more_verbose}（平均单句消息更长、更详细）",
+        "",
+        "---",
+        "",
+        "## 五、高阶诊断特征（直击灵魂）",
+        "",
+        "### 1. 📝 信息差指数 (Talkativity Asymmetry)",
+        f"- 我方总输出字数：**{me_chars} 字**",
+        f"- 对方总输出字数：**{them_chars} 字**",
+    ]
+    
+    char_ratio = me_chars / max(1, them_chars)
+    if me_chars < 20 and them_chars < 20:
+        lines.append("> 💡 数据量较少，暂无法评估输入不对等情况。")
+    elif char_ratio > 3:
+        lines.append("> ⚠️ **预警**：我方输出字数是对方的 3 倍以上！存在极强的单向输出（小作文）与敷衍回复倾斜。")
+    elif char_ratio < 0.33:
+        lines.append("> ⚠️ **预警**：对方输出字数是我方的 3 倍以上！对方极其投入，而我方回复过于简略敷衍。")
+    else:
+        lines.append("> 💡 双方字数投入相对均衡，沟通意愿对等。")
+
+    lines += [
+        "",
+        "### 2. 🧊 冷战探测器 (Ghosting / Silence Gap)",
+        f"- 记录内最长失联跨度：**{gap_desc}**",
+    ]
+    if max_gap_days >= 1.5:
+        lines.append(f"- 最长冷战破冰者：**{icebreaker}** 先开口打破僵局")
+    else:
+        lines.append("- *该段关系互动高频，无明显断崖失联期。*")
+
+    lines += [
+        "",
+        "### 3. 🌙 深夜软肋指数 (Late-Night Vulnerability)",
+        "> *统计 23:00 - 05:00 荷尔蒙高发时段的消息占比*",
+        f"- 我方深夜消息占比：**{me_night_ratio}%**（共 {me_night} 条）",
+        f"- 对方深夜消息占比：**{them_night_ratio}%**（共 {them_night} 条）",
         "",
     ]
 
@@ -238,7 +313,7 @@ def generate_report(scores: list[dict], parsed: list[dict],
         lines += [
             "---",
             "",
-            "## 五、复盘诊断",
+            "## 六、复盘总评",
             "",
             f"**综合评估**：{diagnosis}",
             "",
@@ -262,7 +337,7 @@ def generate_report(scores: list[dict], parsed: list[dict],
         lines += [
             "---",
             "",
-            "## 五、当前趋势与预测",
+            "## 六、当前趋势与预测",
             "",
             f"- **我方趋势**：{me_trend}",
             f"- **对方趋势**：{them_trend}",

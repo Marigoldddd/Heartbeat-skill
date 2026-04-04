@@ -1,22 +1,156 @@
 [
-    {
-        "sender": "me",
-        "content": "\u65e9\u5b89\uff01",
-        "ts": "2024-01-01T08:00:00"
-    },
-    {
-        "sender": "them",
-        "content": "\u65e9\u554a\u65e9\u554a\uff01\u6211\u521a\u8d77\uff01",
-        "ts": "2024-01-01T08:05:00"
-    },
-    {
-        "sender": "me",
-        "content": "\u4eca\u5929\u5929\u6c14\u597d\u597d\uff0c\u8bb0\u5f97\u591a\u7a7f\u70b9",
-        "ts": "2024-01-22T10:00:00"
-    },
-    {
-        "sender": "them",
-        "content": "\u55ef",
-        "ts": "2024-01-22T12:00:00"
-    }
+  {
+    "ts": "2024-01-01T10:00:00",
+    "sender": "me",
+    "raw_sender": "我",
+    "content": "早上好啊亲爱的！",
+    "len": 8,
+    "has_question": false,
+    "has_emoji": false,
+    "has_affection_call": true,
+    "sentiment_raw": null
+  },
+  {
+    "ts": "2024-01-01T10:05:00",
+    "sender": "them",
+    "raw_sender": "TA",
+    "content": "早鸭！今天天气真好哈哈哈",
+    "len": 12,
+    "has_question": false,
+    "has_emoji": true,
+    "has_affection_call": false,
+    "sentiment_raw": null
+  },
+  {
+    "ts": "2024-01-01T23:30:00",
+    "sender": "me",
+    "raw_sender": "我",
+    "content": "还不睡吗？一直在想你，这几天跟你聊天特别开心",
+    "len": 22,
+    "has_question": true,
+    "has_emoji": false,
+    "has_affection_call": false,
+    "sentiment_raw": null
+  },
+  {
+    "ts": "2024-01-01T23:35:00",
+    "sender": "them",
+    "raw_sender": "TA",
+    "content": "我也在想你，睡不着",
+    "len": 9,
+    "has_question": false,
+    "has_emoji": false,
+    "has_affection_call": false,
+    "sentiment_raw": null
+  },
+  {
+    "ts": "2024-01-04T12:00:00",
+    "sender": "me",
+    "raw_sender": "我",
+    "content": "中午吃什么？要一起去吃烤肉吗？我看好了一家评价很不错的店，感觉你会喜欢！",
+    "len": 36,
+    "has_question": true,
+    "has_emoji": false,
+    "has_affection_call": false,
+    "sentiment_raw": null
+  },
+  {
+    "ts": "2024-01-04T12:01:00",
+    "sender": "them",
+    "raw_sender": "TA",
+    "content": "好啊走起",
+    "len": 4,
+    "has_question": false,
+    "has_emoji": false,
+    "has_affection_call": false,
+    "sentiment_raw": null
+  },
+  {
+    "ts": "2024-01-04T15:00:00",
+    "sender": "me",
+    "raw_sender": "我",
+    "content": "其实今天有点不开心，工作上遇到了很不爽的事情，被老板一顿痛骂，我都不知道自己做错了什么，真的很委屈...",
+    "len": 50,
+    "has_question": false,
+    "has_emoji": false,
+    "has_affection_call": false,
+    "sentiment_raw": null
+  },
+  {
+    "ts": "2024-01-04T16:30:00",
+    "sender": "them",
+    "raw_sender": "TA",
+    "content": "哦哦，那你别理他",
+    "len": 8,
+    "has_question": false,
+    "has_emoji": false,
+    "has_affection_call": false,
+    "sentiment_raw": null
+  },
+  {
+    "ts": "2024-01-05T09:00:00",
+    "sender": "me",
+    "raw_sender": "我",
+    "content": "早啊，今天降温了记得多穿点衣服，别感冒了",
+    "len": 20,
+    "has_question": false,
+    "has_emoji": false,
+    "has_affection_call": false,
+    "sentiment_raw": null
+  },
+  {
+    "ts": "2024-01-05T12:00:00",
+    "sender": "them",
+    "raw_sender": "TA",
+    "content": "嗯",
+    "len": 1,
+    "has_question": false,
+    "has_emoji": false,
+    "has_affection_call": false,
+    "sentiment_raw": null
+  },
+  {
+    "ts": "2024-01-09T20:00:00",
+    "sender": "me",
+    "raw_sender": "我",
+    "content": "你怎么这几天都不怎么回消息了，是我哪里惹你生气了吗？如果有错我可以改，但是你这样冷暴力我真的很难受很难受，不知道到底该怎么办了。如果你想分开可以直接告诉我，但至少把话说清楚好吗？",
+    "len": 89,
+    "has_question": true,
+    "has_emoji": false,
+    "has_affection_call": false,
+    "sentiment_raw": null
+  },
+  {
+    "ts": "2024-01-10T10:00:00",
+    "sender": "them",
+    "raw_sender": "TA",
+    "content": "最近比较忙，你想太多了",
+    "len": 11,
+    "has_question": false,
+    "has_emoji": false,
+    "has_affection_call": false,
+    "sentiment_raw": null
+  },
+  {
+    "ts": "2024-01-14T23:55:00",
+    "sender": "me",
+    "raw_sender": "我",
+    "content": "睡了吗？我最近也想了很多，对不起之前给你压力太大了。希望以后还能是朋友。",
+    "len": 36,
+    "has_question": true,
+    "has_emoji": false,
+    "has_affection_call": false,
+    "sentiment_raw": null
+  },
+  {
+    "ts": "2024-01-15T08:00:00",
+    "sender": "them",
+    "raw_sender": "TA",
+    "content": "没关系，那就做朋友吧。",
+    "len": 11,
+    "has_question": false,
+    "has_emoji": false,
+    "has_affection_call": false,
+    "sentiment_raw": null
+  }
 ]

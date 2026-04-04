@@ -281,11 +281,11 @@ print('CC 评分已写入 /tmp/cc_scores.json')
 python3 ${CLAUDE_SKILL_DIR}/tools/score_merger.py \
   --rule /tmp/rule_scores.json \
   --cc   /tmp/cc_scores.json \
-  --rule-weight 0.4 \
+  --rule-weight 0.2 \
   --output /tmp/heartbeat_scores.json
 ```
 
-融合策略：**CC 语义分数权重 60%，规则分数权重 40%**。
+融合策略：**CC 语义分数权重 80%，规则分数权重 20%**。
 当某窗口 CC confidence 为 `"low"` 时，自动切换为规则优先（规则 60% / CC 40%）。
 
 ---
@@ -312,7 +312,25 @@ python3 ${CLAUDE_SKILL_DIR}/tools/report_writer.py \
   --output /tmp/heartbeat_report_preview.md
 ```
 
-读取报告内容后，向用户展示摘要预览（关系概况表 + 阶段判断 + 前 2 个关键节点），询问确认：
+---
+
+#### Step 4b：最终 AI 深度心理剖析 (Final AI Diagnosis)
+
+报告的基础框架生成后，你需要基于你在前面步骤中**阅读过的全部原生聊天文本的记忆**，再加上这篇 `_report_preview.md` 里的精准量化数据，亲自撰写最后的深度剖析。
+
+```
+Read ${CLAUDE_SKILL_DIR}/prompts/cc_final_diagnosis_prompt.md
+Read /tmp/heartbeat_report_preview.md
+```
+
+按照 `cc_final_diagnosis_prompt.md` 的专家指令，生成一份 500 字以上的深度情感心理测写长文。
+**直接将你生成的这段 Markdown 文本（以 `## 七、AI 深度心理剖析与侧写` 开头），通过 Bash/Edit 工具原生追加（Append）到 `/tmp/heartbeat_report_preview.md` 文件的最末尾！**
+
+---
+
+### 向用户展示
+
+读取追加完你心血剖析的完整报告内容后，向用户展示摘要预览（关系概况表 + 阶段判断 + 前 2 个关键节点 + 你刚写的一句核心判词），询问确认：
 
 ```
 📊 分析完成，预览摘要：
@@ -322,11 +340,7 @@ python3 ${CLAUDE_SKILL_DIR}/tools/report_writer.py \
   我方平均好感度：{me_avg} → {me_phase}
   对方平均好感度：{them_avg} → {them_phase}
 
-  趋势：我方 {me_trend} / 对方 {them_trend}
-
-  关键节点：
-    - {date}：{event}
-    - {date}：{event}
+  💡 核心判定：{你的判词内容}
 
 确认保存完整报告和图表？
 ```
@@ -572,10 +586,10 @@ Also fill in `events` for key turning points and user-provided time markers.
 python3 ${CLAUDE_SKILL_DIR}/tools/score_merger.py \
   --rule /tmp/rule_scores.json \
   --cc   /tmp/cc_scores.json \
-  --rule-weight 0.4 \
+  --rule-weight 0.2 \
   --output /tmp/heartbeat_scores.json
 ```
-Final score = 60% CC semantic + 40% rule-based.
+Final score = 80% CC semantic + 20% rule-based.
 
 ---
 
@@ -595,7 +609,15 @@ python3 ${CLAUDE_SKILL_DIR}/tools/report_writer.py \
   --output /tmp/heartbeat_report_preview.md
 ```
 
-Show the user a summary preview, ask for confirmation before saving.
+#### Step 4b: Final AI Semantic Diagnosis
+```
+Read ${CLAUDE_SKILL_DIR}/prompts/cc_final_diagnosis_prompt.md
+Read /tmp/heartbeat_report_preview.md
+```
+Combine the objective stats from `_report_preview.md` with your memory of the actual chat content from `_windows.json`. Generate a deep, piercing 500-word psychoanalysis markdown following the prompt's persona.
+**Append this newly generated Markdown strictly to the end of `/tmp/heartbeat_report_preview.md`.**
+
+Show the user a summary preview including your core judgment quote, ask for confirmation before saving.
 
 ---
 
