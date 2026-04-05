@@ -9,11 +9,14 @@ heartbeat_plotter.py — 好感度双折线图生成器
 
 import json
 import argparse
+import os
 import sys
+import tempfile
 from pathlib import Path
 from datetime import datetime
 
 try:
+    os.environ.setdefault("MPLCONFIGDIR", str(Path(tempfile.gettempdir()) / "matplotlib"))
     import matplotlib
     matplotlib.use("Agg")
     import matplotlib.pyplot as plt

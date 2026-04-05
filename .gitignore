@@ -14,6 +14,7 @@ ENV/
 # IDEs / OS
 .idea/
 .vscode/
+.codex
 *.swp
 .DS_Store
 

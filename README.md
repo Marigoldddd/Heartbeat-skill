@@ -8,119 +8,190 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.9+](https://img.shields.io/badge/Python-3.9%2B-blue.svg)](https://python.org)
 [![Claude Code](https://img.shields.io/badge/Claude%20Code-Skill-blueviolet)](https://claude.ai/code)
+[![Codex](https://img.shields.io/badge/Codex-Agent-10a37f)](agents/openai.yaml)
 
-[效果展示](#效果展示) · [功能](#功能) · [详细安装指南](INSTALL.md) · [快速开始](#快速开始) · [**English**](README_EN.md)
+[快速开始](#快速开始) · [使用方式](#使用方式) · [效果展示](#效果展示) · [工作原理](#工作原理) · [详细安装指南](INSTALL.md) · [**English**](README_EN.md)
 
 </div>
 
----
+Heartbeat 是一个用于分析双人聊天记录的双向好感度曲线工具。
 
-## 效果展示
+你提供聊天记录，它会输出两类结果：
+- 一张双向好感度折线图：按时间窗口展示「我」和「TA」的情绪投入变化
+- 一份诊断报告：总结关系阶段、关键拐点、双方画像与整体判断
 
-### 双向好感度折线图
-![示例折线图](examples/sample_heartbeat.png)
+它既可以作为 Claude Code Skill 使用，也可以作为 Codex Agent 使用，还可以单独当作 Python CLI 工具运行。
 
-### 综合诊断报告示例
-> **综合评估**：对方好感度在下滑，而我方仍在投入，这种错位是关系恶化的常见前兆。
-> **建议关注的时间节点**：2024-01-15：我方 -5.0 / 对方 -22.0
+## 适合什么场景
 
-完整报告示例请见 [examples/sample_report.md](examples/sample_report.md)
+- 💔 想复盘一段已经结束或明显降温的关系
+- 🌙 想持续追踪一段正在进行中的互动变化
+- 🧭 想把“感觉不对劲”转成可回看的时间线和结构化报告
 
----
+## 输入与输出
 
-## 功能
+**输入**
+- 💬 微信导出的 `.txt` / `.html` / `.csv`
+- 🍎 iMessage 导出文件
+- 📱 Android SMS 备份 XML
+- ✍️ 直接粘贴的纯文本聊天记录
 
-- 📊 **双向量化** — 同时分析「我」和「TA」的好感度变化，而不是只看对方
-- 📈 **折线图** — 按周/月/天分段，生成好感度双折线图（PNG, 300 DPI）
-- 📝 **文字报告** — 关系概况、关键节点、双方行为画像、整体诊断
-- 🔄 **两种模式** — 复盘型（已结束关系）和追踪型（持续更新）
-- 💬 **多格式支持** — 微信 TXT/HTML/CSV、iMessage、SMS XML、纯文本粘贴
+**输出**
+- 📈 `heartbeat.png`：双向好感度折线图
+- 📝 `report.md`：文字诊断报告
+- 🗂️ `scores.json` / `parsed.json`：中间评分与解析结果，便于继续追踪或二次处理
 
 ## 快速开始
 
-### 安装依赖
+### 1. 安装依赖
 
 ```bash
 pip install -r requirements.txt
 ```
-> 完整 Claude Code 挂载步骤与全局安装说明，请务必参考 **[详细安装指南](INSTALL.md)**。
 
-### 在 Claude Code 中使用
+> Claude Code / Codex 的挂载方式与全局安装步骤见 [INSTALL.md](INSTALL.md)。
 
-```
-/heartbeat-review    ← 复盘一段已结束的关系
-/heartbeat-track     ← 追踪正在进行的关系
-/heartbeat-update    ← 追加新的聊天记录更新曲线
-/heartbeat-list      ← 列出所有已保存的分析会话
-```
+### 2. 选择一种使用方式
 
-## 工具链
+#### Claude Code
 
-```
-聊天记录文件
-    ↓
-tools/chat_parser.py      → parsed.json    (双向消息列表 + 特征提取)
-    ↓
-tools/sentiment_scorer.py → scores.json    (按时间窗口的双向好感度评分)
-    ↓
-tools/heartbeat_plotter.py    → heartbeat.png      (双折线图)
-tools/report_writer.py    → report.md      (文字诊断报告)
+```text
+/heartbeat-review    复盘一段已结束或降温的关系
+/heartbeat-track     建立持续追踪
+/heartbeat-update    追加新的聊天记录更新曲线
+/heartbeat-list      列出已保存的分析会话
 ```
 
-## 双层评分模型
+#### Codex
 
-Heartbeat 的每一次打分，都由以下两层维度加权融合而成：
-
-### 一、Claude 语义推理（核心权重 80%）
-由 Claude 模型深度参与，根据上下文真实语境进行理解：
-- 识别潜台词与真实情绪（比如 "随便" 是在撒娇还是在敷衍）
-- 自动捕捉长对话中的核心情感事件与爆发拐点
-- 在消息量过少的日期自动降低置信度，交由规则接管
-
-### 二、客观行为规则（客观权重 20%）
-基于聊天记录元数据的硬性、可量化指标分析：
-
-| 维度 | 子权重 | 说明 |
-|------|------|------|
-| 主动性 | 25% | 谁先发消息 / 每天主动发起对话的次数占比 |
-| 回复速度 | 20% | 双方的平均回复延迟（越快越高分） |
-| 消息长度 | 15% | 平均消息字符丰富度（字数越多 → 投入越多） |
-| 情感词密度 | 25% | 命中词库中正向/负向情感特征词频率 |
-| 特殊行为 | 15% | 主动反问次数、emoji密度、专属亲昵称呼 |
-
-## 会话文件结构
-
+```text
+使用 $heartbeat 分析我和 TA 的聊天记录，并生成好感度曲线和诊断报告
+使用 $heartbeat 建立一个持续追踪会话
+使用 $heartbeat 更新已有会话的聊天记录
 ```
+
+#### 直接用 CLI
+
+```bash
+# 1) 解析聊天记录
+python3 tools/chat_parser.py --file chat.txt --me "我" --them "TA" --output parsed.json
+
+# 2) 计算双向评分
+python3 tools/sentiment_scorer.py --input parsed.json --window week --output scores.json
+
+# 3) 生成折线图
+python3 tools/heartbeat_plotter.py --scores scores.json --me "我" --them "TA" --output heartbeat.png
+
+# 4) 生成文字报告
+python3 tools/report_writer.py --scores scores.json --parsed parsed.json \
+  --me "我" --them "TA" --mode review --output report.md
+```
+
+## 使用方式
+
+这个仓库同时提供三种入口：
+
+- 🤖 `SKILL.md`：Claude Code Skill 定义
+- 🧠 `agents/openai.yaml`：Codex Agent 描述
+- 🛠️ `tools/*.py`：可单独调用的本地 Python 工具链
+
+如果你只是想尽快跑起来，优先用 Claude Code 或 Codex；如果你要接入自己的流程或批处理，再用 CLI。
+
+## 效果展示
+
+### 📈 双向好感度折线图
+
+![示例折线图](examples/sample_heartbeat.png)
+
+### 📝 综合诊断报告示例
+
+> **综合评估**：存在明显的付出不对等现象，长期单方投入更多往往是关系隐患。
+> **建议关注的时间节点**：2024-01-04、2024-01-05、2024-01-09
+
+完整报告示例请见 [examples/sample_report.md](examples/sample_report.md)。
+
+## 功能亮点
+
+- 📊 双向量化：同时计算「我」和「TA」的变化，不只判断单方情绪
+- 🗓️ 多粒度时间窗口：支持按天、周、月聚合曲线
+- 🧾 双输出产物：同时生成可视化折线图和结构化文字报告
+- 🔄 两种分析模式：支持复盘型与追踪型会话
+- 💬 多格式导入：支持微信、iMessage、SMS XML 和纯文本
+- 🔒 本地优先：核心解析、规则评分、绘图和报告写入都在本地完成
+
+## 一个最小闭环
+
+典型流程是这样的：
+
+1. 导入聊天记录
+2. 解析成双向消息流
+3. 按时间窗口计算双方好感度
+4. 生成折线图与报告
+5. 将结果写入 `sessions/{slug}/`
+
+生成后的目录结构如下：
+
+```text
 sessions/{slug}/
-├── heartbeat.png   ← 好感度双折线图
-├── report.md       ← 完整分析报告
-├── scores.json     ← 时间窗口评分数据
-├── parsed.json     ← 解析后的消息数据
-├── meta.json       ← 会话元信息
-└── history/        ← 历史版本备份
+├── heartbeat.png
+├── report.md
+├── scores.json
+├── parsed.json
+├── meta.json
+└── history/
     ├── heartbeat_v1.png
     └── report_v1.md
 ```
 
-## 单独使用工具
+## 工作原理
 
-```bash
-# 解析双向聊天记录
-python3 tools/chat_parser.py --file chat.txt --me "小明" --them "小红" --output parsed.json
+Heartbeat 的评分由两层组成：
 
-# 计算好感度评分
-python3 tools/sentiment_scorer.py --input parsed.json --window week --output scores.json
+### 1. 🧠 语义推理层
 
-# 生成折线图
-python3 tools/heartbeat_plotter.py --scores scores.json --me "小明" --them "小红" --output heartbeat.png
+由大语言模型结合上下文判断真实语气和情绪走向，例如：
 
-# 生成文字报告
-python3 tools/report_writer.py --scores scores.json --parsed parsed.json \
-  --me "小明" --them "小红" --mode review --output report.md
+- 同一句“随便”是在撒娇、疲惫还是敷衍
+- 哪些片段是关系升温或降温的关键转折点
+- 在消息太少时主动降低结论置信度
+
+### 2. 📏 行为规则层
+
+基于聊天记录元数据做客观评分：
+
+| 维度 | 子权重 | 说明 |
+|------|------|------|
+| 主动性 | 25% | 谁更常先发起对话 |
+| 回复速度 | 20% | 平均回复延迟，越快通常投入越高 |
+| 消息长度 | 15% | 单条消息平均信息量 |
+| 情感词密度 | 25% | 正向/负向情感词与表达频率 |
+| 特殊行为 | 15% | 反问、emoji、亲昵称呼等特征 |
+
+最终曲线不是简单情绪分类，而是语义理解与行为信号融合后的时间序列。
+
+## 工具链
+
+```text
+聊天记录文件
+    ↓
+tools/chat_parser.py       → parsed.json
+    ↓
+tools/sentiment_scorer.py  → scores.json
+    ↓
+tools/heartbeat_plotter.py → heartbeat.png
+tools/report_writer.py     → report.md
 ```
+
+## 隐私说明
+
+- 🔐 聊天记录解析、规则评分、绘图和报告生成都在本地完成
+- 🏠 仓库本身不会把原始聊天记录主动上传到外部服务
+- ☁️ 如果你通过 Claude Code / Codex 使用语义分析层，是否会把部分文本发送给模型，取决于你当前宿主和模型的实际调用方式
+
+这类数据天然敏感，建议在本地环境中使用，并自行决定是否脱敏。
 
 <div align="center">
 
-*Built for use with Claude Code*
+*Built for use with Claude Code and Codex*
 
 </div>

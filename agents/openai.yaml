@@ -1,0 +1,4 @@
+interface:
+  display_name: "Heartbeat"
+  short_description: "Analyze chat history into emotion curves and reports"
+  default_prompt: "Use $heartbeat to analyze a relationship chat history and generate a heartbeat curve plus a diagnosis report."

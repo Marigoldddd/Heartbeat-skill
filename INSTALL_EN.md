@@ -1,16 +1,24 @@
 # Heartbeat Installation & Configuration Guide
 
-Heartbeat can be used as a Claude Code Skill and also directly as a Python CLI tool. Since it handles highly sensitive chat logs, its core extraction and plotting logic effectively runs locally on your machine—so, apart from the implicit LLM semantic scoring, your raw database records are kept extremely private and secure.
+Heartbeat can be used as a Claude Code skill, a Codex agent, or directly as a Python CLI tool. Since it handles highly sensitive chat logs, its core extraction and plotting logic effectively runs locally on your machine, so apart from the LLM semantic scoring layer, your raw records remain private.
 
 ---
 
 ## 🛠️ Method 1: Global Installation (Highly Recommended)
-With a global installation, you can launch `claude` from anywhere in your file system and the `/heartbeat` command will always be readily available.
+With a global installation, you can launch `claude` or `codex` from anywhere and invoke Heartbeat directly.
 
-**1. Create and enter the global `.claude/skills` directory**
+**1. Pick your host and create the global directory**
+
+Claude Code:
 ```bash
 mkdir -p ~/.claude/skills
 cd ~/.claude/skills
+```
+
+Codex:
+```bash
+mkdir -p ~/.codex/skills
+cd ~/.codex/skills
 ```
 
 **2. Clone the repository**
@@ -29,8 +37,9 @@ pip install -r requirements.txt
 ---
 
 ## 📁 Method 2: Local Project Installation
-If you prefer not to install it globally and only want Heartbeat specific to your current terminal workspace:
+If you prefer not to install it globally and only want Heartbeat inside the current workspace:
 
+Claude Code:
 ```bash
 # Create the local skills directory in your current workspace
 mkdir -p .claude/skills
@@ -41,13 +50,28 @@ cd .claude/skills/heartbeat
 pip install -r requirements.txt
 ```
 
+Codex:
+```bash
+mkdir -p .codex/skills
+git clone https://github.com/your-username/heartbeat.git .codex/skills/heartbeat
+cd .codex/skills/heartbeat
+pip install -r requirements.txt
+```
+
 ---
 
 ## ✅ Verifying the Installation
 
-1. Safely exit any currently running Claude Code session (hit `Ctrl+D` or type `exit` in the terminal).
-2. Type `claude` to boot up a fresh session.
-3. Bring up the command menu by typing the forward slash `/`.
-4. Look through the options—if you explicitly see the `/heartbeat` command alongside our poetic "trajectory of your resonating heartbeats" introduction, you're all set!
+Claude Code:
+1. Exit any running Claude Code session.
+2. Start a fresh `claude` session.
+3. Open the slash-command menu with `/`.
+4. If Heartbeat appears with its description, the setup is complete.
 
-Once correctly installed, simply type `/heartbeat-review` to analyze a past romance or `/heartbeat-track` to track an ongoing one.
+Codex:
+1. Exit any running Codex session.
+2. Start a fresh `codex` session.
+3. Type `Use $heartbeat to analyze my relationship chat history`.
+4. If Codex resolves the `Heartbeat` agent and starts the workflow, the setup is complete.
+
+In this repository, `SKILL.md` is the Claude Code entry point and `agents/openai.yaml` is the Codex entry point. Both reuse the same `tools/` and `prompts/`.

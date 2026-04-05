@@ -8,27 +8,39 @@ allowed-tools: Read, Write, Edit, Bash
 ---
 
 > **语言 / Language**: 根据用户第一条消息的语言全程使用同一语言。中文指令在前，English version follows the Chinese section.
+>
+> **兼容说明 / Compatibility**:
+> - 在 Claude Code 中，优先使用原生的 `${CLAUDE_SKILL_DIR}`。
+> - 在 Codex 中，回退到 `${CODEX_HOME:-$HOME/.codex}/skills/heartbeat`。
+> - 下文凡是涉及脚本或 prompt 路径，均按这个优先级解析。
 
-# Heartbeat（Claude Code 版）
+# Heartbeat（Claude Code / Codex 版）
 
 > *"情绪的起伏，藏在那些没有说出口的停顿里。"*
 > *将千万条聊天记录，还原成你们心跳共振的轨迹。*
 
 ## 触发条件
 
+不同宿主中的典型触发方式：
+- Claude Code：使用 `/heartbeat-review`、`/heartbeat-track`、`/heartbeat-update`
+- Codex：使用 `$heartbeat`，例如“使用 $heartbeat 分析我和 TA 的聊天记录”
+
 启动 **复盘型分析**：
 - `/heartbeat-review`
+- `$heartbeat` + “复盘聊天记录”
 - "帮我分析聊天记录的好感度曲线"
 - "分析我们的关系走势"
 - "看看我们的好感度"
 
 启动 **追踪型分析**（新建基线）：
 - `/heartbeat-track`
+- `$heartbeat` + “建立追踪”
 - "我想追踪我们的情感变化"
 - "建立好感度追踪"
 
 **追加更新**（已有追踪会话时）：
 - `/heartbeat-update`
+- `$heartbeat` + “更新已有会话”
 - "更新曲线" / "我有新的聊天记录"
 
 **管理命令**：
@@ -43,12 +55,12 @@ allowed-tools: Read, Write, Edit, Bash
 |------|---------|
 | 读取 TXT / MD / CSV 文件 | `Read` 工具 |
 | 读取图片截图 / PDF | `Read` 工具（原生支持） |
-| 解析聊天记录（双向） | `Bash` → `python3 ${CLAUDE_SKILL_DIR}/tools/chat_parser.py` |
-| 规则评分（底层） | `Bash` → `python3 ${CLAUDE_SKILL_DIR}/tools/sentiment_scorer.py` |
-| **CC 语义打分（核心）** | 读取 prompt → 直接分析消息内容 → 输出 JSON |
-| 融合两层分数 | `Bash` → `python3 ${CLAUDE_SKILL_DIR}/tools/score_merger.py` |
-| 生成折线图 | `Bash` → `python3 ${CLAUDE_SKILL_DIR}/tools/heartbeat_plotter.py` |
-| 生成文字报告 | `Bash` → `python3 ${CLAUDE_SKILL_DIR}/tools/report_writer.py` |
+| 解析聊天记录（双向） | `Bash` → `python3 "${CLAUDE_SKILL_DIR:-${CODEX_HOME:-$HOME/.codex}/skills/heartbeat}/tools/chat_parser.py"` |
+| 规则评分（底层） | `Bash` → `python3 "${CLAUDE_SKILL_DIR:-${CODEX_HOME:-$HOME/.codex}/skills/heartbeat}/tools/sentiment_scorer.py"` |
+| **LLM 语义打分（核心）** | 读取 prompt → 直接分析消息内容 → 输出 JSON |
+| 融合两层分数 | `Bash` → `python3 "${CLAUDE_SKILL_DIR:-${CODEX_HOME:-$HOME/.codex}/skills/heartbeat}/tools/score_merger.py"` |
+| 生成折线图 | `Bash` → `python3 "${CLAUDE_SKILL_DIR:-${CODEX_HOME:-$HOME/.codex}/skills/heartbeat}/tools/heartbeat_plotter.py"` |
+| 生成文字报告 | `Bash` → `python3 "${CLAUDE_SKILL_DIR:-${CODEX_HOME:-$HOME/.codex}/skills/heartbeat}/tools/report_writer.py"` |
 | 写入会话文件 | `Write` / `Edit` 工具 |
 
 **基础目录**：所有会话文件写入 `./sessions/{slug}/`（相对于本项目目录）。
@@ -59,7 +71,7 @@ allowed-tools: Read, Write, Edit, Bash
 
 ### Step 1：信息采集
 
-参考 `${CLAUDE_SKILL_DIR}/prompts/intake.md` 的问题序列，询问 4 个问题：
+参考 `${CLAUDE_SKILL_DIR:-${CODEX_HOME:-$HOME/.codex}/skills/heartbeat}/prompts/intake.md` 的问题序列，询问 4 个问题：
 
 1. 双方昵称（必填）
 2. 关系背景（必填，一句话）
@@ -109,7 +121,7 @@ allowed-tools: Read, Write, Edit, Bash
 #### 方式 A：微信聊天记录
 
 ```bash
-python3 ${CLAUDE_SKILL_DIR}/tools/chat_parser.py \
+python3 "${CLAUDE_SKILL_DIR:-${CODEX_HOME:-$HOME/.codex}/skills/heartbeat}/tools/chat_parser.py" \
   --file {path} \
   --me "{me_name}" \
   --them "{them_name}" \
@@ -124,7 +136,7 @@ python3 ${CLAUDE_SKILL_DIR}/tools/chat_parser.py \
 
 ```bash
 # 指定导出文件
-python3 ${CLAUDE_SKILL_DIR}/tools/chat_parser.py \
+python3 "${CLAUDE_SKILL_DIR:-${CODEX_HOME:-$HOME/.codex}/skills/heartbeat}/tools/chat_parser.py" \
   --file {path_to_chat.db_or_export} \
   --format imessage \
   --me "{me_name}" \
@@ -137,7 +149,7 @@ python3 ${CLAUDE_SKILL_DIR}/tools/chat_parser.py \
 #### 方式 C：SMS XML
 
 ```bash
-python3 ${CLAUDE_SKILL_DIR}/tools/chat_parser.py \
+python3 "${CLAUDE_SKILL_DIR:-${CODEX_HOME:-$HOME/.codex}/skills/heartbeat}/tools/chat_parser.py" \
   --file {path_to_sms_backup.xml} \
   --format sms \
   --me "{me_name}" \
@@ -158,7 +170,7 @@ CHATEOF
 
 然后：
 ```bash
-python3 ${CLAUDE_SKILL_DIR}/tools/chat_parser.py \
+python3 "${CLAUDE_SKILL_DIR:-${CODEX_HOME:-$HOME/.codex}/skills/heartbeat}/tools/chat_parser.py" \
   --file /tmp/heartbeat_pasted.txt \
   --format plain \
   --me "{me_name}" \
@@ -178,12 +190,12 @@ python3 ${CLAUDE_SKILL_DIR}/tools/chat_parser.py \
 
 ---
 
-### Step 3：双层评分（规则 + Claude 语义）
+### Step 3：双层评分（规则 + LLM 语义）
 
 #### 3a. 规则层评分
 
 ```bash
-python3 ${CLAUDE_SKILL_DIR}/tools/sentiment_scorer.py \
+python3 "${CLAUDE_SKILL_DIR:-${CODEX_HOME:-$HOME/.codex}/skills/heartbeat}/tools/sentiment_scorer.py" \
   --input /tmp/heartbeat_parsed.json \
   --window auto \
   --output /tmp/rule_scores.json
@@ -239,11 +251,11 @@ EOF
 
 ---
 
-#### 3c. **[CC 核心步骤] Claude 语义打分**
+#### 3c. **[CC 核心步骤] LLM 语义打分**
 
 读取评分 prompt：
 ```
-Read ${CLAUDE_SKILL_DIR}/prompts/cc_scorer_prompt.md
+Read ${CLAUDE_SKILL_DIR:-${CODEX_HOME:-$HOME/.codex}/skills/heartbeat}/prompts/cc_scorer_prompt.md
 ```
 
 然后读取分组数据：
@@ -278,7 +290,7 @@ print('CC 评分已写入 /tmp/cc_scores.json')
 #### 3d. 融合两层分数
 
 ```bash
-python3 ${CLAUDE_SKILL_DIR}/tools/score_merger.py \
+python3 "${CLAUDE_SKILL_DIR:-${CODEX_HOME:-$HOME/.codex}/skills/heartbeat}/tools/score_merger.py" \
   --rule /tmp/rule_scores.json \
   --cc   /tmp/cc_scores.json \
   --rule-weight 0.2 \
@@ -294,7 +306,7 @@ python3 ${CLAUDE_SKILL_DIR}/tools/score_merger.py \
 
 **生成折线图**：
 ```bash
-python3 ${CLAUDE_SKILL_DIR}/tools/heartbeat_plotter.py \
+python3 "${CLAUDE_SKILL_DIR:-${CODEX_HOME:-$HOME/.codex}/skills/heartbeat}/tools/heartbeat_plotter.py" \
   --scores /tmp/heartbeat_scores.json \
   --me "{me_name}" \
   --them "{them_name}" \
@@ -303,7 +315,7 @@ python3 ${CLAUDE_SKILL_DIR}/tools/heartbeat_plotter.py \
 
 **生成文字报告**：
 ```bash
-python3 ${CLAUDE_SKILL_DIR}/tools/report_writer.py \
+python3 "${CLAUDE_SKILL_DIR:-${CODEX_HOME:-$HOME/.codex}/skills/heartbeat}/tools/report_writer.py" \
   --scores /tmp/heartbeat_scores.json \
   --parsed /tmp/heartbeat_parsed.json \
   --me "{me_name}" \
@@ -319,7 +331,7 @@ python3 ${CLAUDE_SKILL_DIR}/tools/report_writer.py \
 报告的基础框架生成后，你需要基于你在前面步骤中**阅读过的全部原生聊天文本的记忆**，再加上这篇 `_report_preview.md` 里的精准量化数据，亲自撰写最后的深度剖析。
 
 ```
-Read ${CLAUDE_SKILL_DIR}/prompts/cc_final_diagnosis_prompt.md
+Read ${CLAUDE_SKILL_DIR:-${CODEX_HOME:-$HOME/.codex}/skills/heartbeat}/prompts/cc_final_diagnosis_prompt.md
 Read /tmp/heartbeat_report_preview.md
 ```
 
@@ -479,24 +491,32 @@ rm -rf sessions/{slug}
 
 # English Version
 
-# Heartbeat (Claude Code Edition)
+# Heartbeat (Claude Code / Codex Edition)
 
 > *"The rhythm of feelings, hidden in every 'typing...'."*
 > *Turn thousands of chat logs back into the trajectory of your resonating heartbeats.*
 
 ## Trigger Conditions
 
+Typical host-specific triggers:
+- Claude Code: `/heartbeat-review`, `/heartbeat-track`, `/heartbeat-update`
+- Codex: `$heartbeat`, for example: `Use $heartbeat to analyze my relationship chat history`
+
 Start **Review Mode** (finished relationship):
 - `/heartbeat-review`
+- `$heartbeat` + "review this chat history"
 - "Analyze my chat history for favorability curve"
 - "Show me our relationship trend"
 
 Start **Tracking Mode** (ongoing relationship):
 - `/heartbeat-track`
+- `$heartbeat` + "start tracking"
 - "Track our emotional dynamics"
 
 **Append Update** (when a session exists):
-- `/heartbeat-update` / "I have new chat logs"
+- `/heartbeat-update`
+- `$heartbeat` + "update the existing session"
+- "I have new chat logs"
 
 **Management**:
 - `/heartbeat-list` — list all saved analysis sessions
@@ -524,7 +544,7 @@ Start **Tracking Mode** (ongoing relationship):
 
 ### Step 1: Info Collection
 
-Refer to `${CLAUDE_SKILL_DIR}/prompts/intake.md`. Ask 4 questions:
+Refer to `${CLAUDE_SKILL_DIR:-${CODEX_HOME:-$HOME/.codex}/skills/heartbeat}/prompts/intake.md`. Ask 4 questions:
 
 1. Both parties' names (required)
 2. Relationship background — one sentence (required)
@@ -555,11 +575,11 @@ Output to `/tmp/heartbeat_parsed.json`.
 
 ---
 
-### Step 3: Dual-Layer Scoring (Rule + CC Semantic)
+### Step 3: Dual-Layer Scoring (Rule + LLM Semantic)
 
 #### 3a. Rule-based scoring
 ```bash
-python3 ${CLAUDE_SKILL_DIR}/tools/sentiment_scorer.py \
+python3 "${CLAUDE_SKILL_DIR:-${CODEX_HOME:-$HOME/.codex}/skills/heartbeat}/tools/sentiment_scorer.py" \
   --input /tmp/heartbeat_parsed.json \
   --window auto \
   --output /tmp/rule_scores.json
@@ -568,10 +588,10 @@ python3 ${CLAUDE_SKILL_DIR}/tools/sentiment_scorer.py \
 #### 3b. Group messages by time window → `/tmp/heartbeat_windows.json`
 (Run the grouping Python snippet from the Chinese section above)
 
-#### 3c. **[CC Core Step] Claude Semantic Scoring**
+#### 3c. **[CC Core Step] LLM Semantic Scoring**
 
 ```
-Read ${CLAUDE_SKILL_DIR}/prompts/cc_scorer_prompt.md
+Read ${CLAUDE_SKILL_DIR:-${CODEX_HOME:-$HOME/.codex}/skills/heartbeat}/prompts/cc_scorer_prompt.md
 Read /tmp/heartbeat_windows.json
 ```
 
@@ -583,7 +603,7 @@ Also fill in `events` for key turning points and user-provided time markers.
 
 #### 3d. Merge scores
 ```bash
-python3 ${CLAUDE_SKILL_DIR}/tools/score_merger.py \
+python3 "${CLAUDE_SKILL_DIR:-${CODEX_HOME:-$HOME/.codex}/skills/heartbeat}/tools/score_merger.py" \
   --rule /tmp/rule_scores.json \
   --cc   /tmp/cc_scores.json \
   --rule-weight 0.2 \
@@ -596,12 +616,12 @@ Final score = 80% CC semantic + 20% rule-based.
 ### Step 4: Generate Chart & Report
 
 ```bash
-python3 ${CLAUDE_SKILL_DIR}/tools/heartbeat_plotter.py \
+python3 "${CLAUDE_SKILL_DIR:-${CODEX_HOME:-$HOME/.codex}/skills/heartbeat}/tools/heartbeat_plotter.py" \
   --scores /tmp/heartbeat_scores.json \
   --me "{me_name}" --them "{them_name}" \
   --output /tmp/heartbeat_preview.png
 
-python3 ${CLAUDE_SKILL_DIR}/tools/report_writer.py \
+python3 "${CLAUDE_SKILL_DIR:-${CODEX_HOME:-$HOME/.codex}/skills/heartbeat}/tools/report_writer.py" \
   --scores /tmp/heartbeat_scores.json \
   --parsed /tmp/heartbeat_parsed.json \
   --me "{me_name}" --them "{them_name}" \
@@ -611,7 +631,7 @@ python3 ${CLAUDE_SKILL_DIR}/tools/report_writer.py \
 
 #### Step 4b: Final AI Semantic Diagnosis
 ```
-Read ${CLAUDE_SKILL_DIR}/prompts/cc_final_diagnosis_prompt.md
+Read ${CLAUDE_SKILL_DIR:-${CODEX_HOME:-$HOME/.codex}/skills/heartbeat}/prompts/cc_final_diagnosis_prompt.md
 Read /tmp/heartbeat_report_preview.md
 ```
 Combine the objective stats from `_report_preview.md` with your memory of the actual chat content from `_windows.json`. Generate a deep, piercing 500-word psychoanalysis markdown following the prompt's persona.
