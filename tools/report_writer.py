@@ -44,6 +44,18 @@ def trend_direction(values: list[float]) -> str:
         return "➡️ 平稳"
 
 
+def score_summary(score: float) -> str:
+    if score >= 75:
+        return "高位亲近"
+    if score >= 60:
+        return "有好感但偏克制"
+    if score >= 45:
+        return "礼貌维系"
+    if score >= 30:
+        return "明显疏离"
+    return "接近断联"
+
+
 def find_peaks(scores: list[dict], key: str) -> list[dict]:
     vals = [s[key] for s in scores]
     peaks = []
@@ -74,6 +86,8 @@ def generate_report(scores: list[dict], parsed: list[dict],
     them_vals = [s["them"] for s in scores]
     me_avg    = round(sum(me_vals) / len(me_vals), 1) if me_vals else 50.0
     them_avg  = round(sum(them_vals) / len(them_vals), 1) if them_vals else 50.0
+    me_current = round(me_vals[-1], 1) if me_vals else 50.0
+    them_current = round(them_vals[-1], 1) if them_vals else 50.0
 
     me_msgs    = [m for m in parsed if m.get("sender") == "me"]
     them_msgs  = [m for m in parsed if m.get("sender") == "them"]
@@ -137,8 +151,8 @@ def generate_report(scores: list[dict], parsed: list[dict],
     them_total_initiative = round(sum(s["them_initiative"] for s in scores) / len(scores) * 100, 1)
 
     # 关系阶段
-    me_phase   = classify_phase(me_avg)
-    them_phase = classify_phase(them_avg)
+    me_phase   = classify_phase(me_current)
+    them_phase = classify_phase(them_current)
 
     # 趋势
     me_trend   = trend_direction(me_vals)
@@ -181,20 +195,20 @@ def generate_report(scores: list[dict], parsed: list[dict],
         f"",
         f"## 二、好感度阶段判断",
         f"",
-        f"- **我方**：当前综合好感度 {me_avg} → 处于「{me_phase}」阶段，趋势 {me_trend}",
-        f"- **对方**：当前综合好感度 {them_avg} → 处于「{them_phase}」阶段，趋势 {them_trend}",
+        f"- **我方**：当前窗口得分 {me_current} → 处于「{me_phase}」阶段，趋势 {me_trend}（历史均值 {me_avg}）",
+        f"- **对方**：当前窗口得分 {them_current} → 处于「{them_phase}」阶段，趋势 {them_trend}（历史均值 {them_avg}）",
         f"",
     ]
 
-    # 阶段解读
-    phase_desc = {
-        "热恋期":  "双方情感高度投入，消息密集，情感表达丰富。",
-        "稳定期":  "关系进入稳定状态，日常互动良好，情感基础扎实。",
-        "平淡期":  "互动趋于例行，新鲜感减退，但关系仍在维系中。",
-        "衰退期":  "一方或双方投入明显减少，关系出现疏离迹象。",
-        "冰点期":  "几乎没有主动联系，情感几近断联，关系高度脆弱。",
-    }
-    lines.append(f"> 💡 {phase_desc.get(classify_phase((me_avg+them_avg)/2), '')}")
+    pair_current = round((me_current + them_current) / 2, 1)
+    pair_avg = round((me_avg + them_avg) / 2, 1)
+    if pair_current <= pair_avg - 8:
+        phase_desc = "当前状态明显低于历史均值，这更像关系回落后的维系，而不是稳定升温。"
+    elif me_trend == "📉 下滑" or them_trend == "📉 下滑":
+        phase_desc = "至少一方已经出现下滑，表面还能聊，不代表关系仍在推进。"
+    else:
+        phase_desc = "当前窗口与历史均值接近，关系处于相对稳定的惯性区间。"
+    lines.append(f"> 💡 {phase_desc}")
     lines.append("")
 
     # ── 关键节点
@@ -209,12 +223,18 @@ def generate_report(scores: list[dict], parsed: list[dict],
     if me_peaks:
         lines.append("**峰值时刻（热情最高）**")
         for p in me_peaks:
-            lines.append(f"- {p['label']}：得分 **{p['me']}**")
+            event_text = f" · {', '.join(p.get('events') or [])}" if p.get("events") else ""
+            reason = p.get("raw", {}).get("me_reasoning", "")
+            reason_text = f"（{reason}）" if reason else ""
+            lines.append(f"- {p['label']}：得分 **{p['me']}**{event_text}{reason_text}")
         lines.append("")
     if me_valleys:
         lines.append("**谷值时刻（投入最低）**")
         for v in me_valleys:
-            lines.append(f"- {v['label']}：得分 **{v['me']}**")
+            event_text = f" · {', '.join(v.get('events') or [])}" if v.get("events") else ""
+            reason = v.get("raw", {}).get("me_reasoning", "")
+            reason_text = f"（{reason}）" if reason else ""
+            lines.append(f"- {v['label']}：得分 **{v['me']}**{event_text}{reason_text}")
         lines.append("")
 
     lines.append("### 对方好感度曲线节点")
@@ -222,12 +242,18 @@ def generate_report(scores: list[dict], parsed: list[dict],
     if them_peaks:
         lines.append("**峰值时刻（热情最高）**")
         for p in them_peaks:
-            lines.append(f"- {p['label']}：得分 **{p['them']}**")
+            event_text = f" · {', '.join(p.get('events') or [])}" if p.get("events") else ""
+            reason = p.get("raw", {}).get("them_reasoning", "")
+            reason_text = f"（{reason}）" if reason else ""
+            lines.append(f"- {p['label']}：得分 **{p['them']}**{event_text}{reason_text}")
         lines.append("")
     if them_valleys:
         lines.append("**谷值时刻（投入最低）**")
         for v in them_valleys:
-            lines.append(f"- {v['label']}：得分 **{v['them']}**")
+            event_text = f" · {', '.join(v.get('events') or [])}" if v.get("events") else ""
+            reason = v.get("raw", {}).get("them_reasoning", "")
+            reason_text = f"（{reason}）" if reason else ""
+            lines.append(f"- {v['label']}：得分 **{v['them']}**{event_text}{reason_text}")
         lines.append("")
 
     # ── 双方画像对比
@@ -301,6 +327,10 @@ def generate_report(scores: list[dict], parsed: list[dict],
         gap = abs(me_avg - them_avg)
         if gap > 20:
             diagnosis = f"存在明显的「付出不对等」现象（差距 {gap} 分），长期单方投入更多往往是关系隐患。"
+        elif me_current >= them_current + 12:
+            diagnosis = f"当前阶段是我方更想推进、对方更偏保留的结构；历史热度并没有延续到现在。"
+        elif them_current >= me_current + 12:
+            diagnosis = f"当前阶段是对方仍在靠近、而我方更克制，这种错位会让互动显得忽冷忽热。"
         elif me_trend == "📉 下滑" and them_trend == "📉 下滑":
             diagnosis = "双方好感度同步下滑，关系走向疏离，可能源于共同的外部压力或关系倦怠。"
         elif me_trend == "📉 下滑" and them_trend != "📉 下滑":
@@ -308,7 +338,7 @@ def generate_report(scores: list[dict], parsed: list[dict],
         elif them_trend == "📉 下滑" and me_trend != "📉 下滑":
             diagnosis = f"对方好感度在下滑，而我方仍在投入，这种错位是关系恶化的常见前兆。"
         else:
-            diagnosis = "双方互动状态相对健康，未发现明显的情感断层。"
+            diagnosis = f"当前关系更接近「{score_summary(pair_current)}」，没有明显冲突，但也未见持续升温证据。"
 
         lines += [
             "---",

@@ -30,14 +30,13 @@ def merge_scores(rule_scores: list[dict], cc_scores: list[dict],
         window = r["window"]
         c = cc_map.get(window, {})
 
-        # 根据 confidence 动态调整权重
+        # 根据 confidence 动态调整权重。
+        # 默认坚持语义层主导；仅在低置信度窗口提高规则层权重。
         confidence = c.get("confidence", "medium")
         if confidence == "low":
-            eff_cc_w, eff_rule_w = 0.3, 0.7
-        elif confidence == "high":
-            eff_cc_w, eff_rule_w = cc_weight, rule_weight
+            eff_cc_w, eff_rule_w = 0.4, 0.6
         else:
-            eff_cc_w, eff_rule_w = 0.5, 0.5
+            eff_cc_w, eff_rule_w = cc_weight, rule_weight
 
         def blend(rule_val, cc_val):
             if cc_val is None:

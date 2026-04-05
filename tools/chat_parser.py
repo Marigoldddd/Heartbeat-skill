@@ -67,18 +67,51 @@ QUESTION_ENDINGS = ["？", "?", "吗", "呢", "啊", "嘛", "吧"]
 def parse_wechat_txt(file_path: str, me_name: str, them_name: str) -> list[dict]:
     """解析微信导出 TXT（WechatExporter 等格式）。双向保留所有消息。"""
     messages = []
-    pattern = re.compile(
+    line_pattern = re.compile(
         r"^(?P<time>\d{4}[-/]\d{1,2}[-/]\d{1,2}[\s\d:]*)\s+(?P<sender>.+?)[:：]\s*(?P<content>.+)$"
+    )
+    block_pattern = re.compile(
+        r"^(?P<date>\d{4}[-/]\d{1,2}[-/]\d{1,2})\s+(?P<time>\d{2}:\d{2}:\d{2})\s+'(?P<sender>[^']+)'$"
     )
     with open(file_path, "r", encoding="utf-8") as f:
         lines = f.readlines()
+
+    # 兼容微信桌面/第三方工具常见的「时间+发送人单独一行，正文跟在后面」格式
+    block_headers = sum(1 for line in lines if block_pattern.match(line.strip()))
+    if block_headers:
+        idx = 0
+        while idx < len(lines):
+            header = lines[idx].strip()
+            match = block_pattern.match(header)
+            if not match:
+                idx += 1
+                continue
+
+            idx += 1
+            content_lines = []
+            while idx < len(lines) and not block_pattern.match(lines[idx].strip()):
+                raw = lines[idx].rstrip("\n")
+                if raw.strip():
+                    content_lines.append(raw)
+                idx += 1
+
+            content = "\n".join(content_lines).strip()
+            if not content:
+                continue
+
+            messages.append({
+                "time_str": f"{match.group('date')} {match.group('time')}",
+                "raw_sender": match.group("sender").strip(),
+                "content": content,
+            })
+        return messages
 
     current_msg = None
     for line in lines:
         line = line.rstrip("\n")
         if not line.strip():
             continue
-        m = pattern.match(line)
+        m = line_pattern.match(line)
         if m:
             if current_msg:
                 messages.append(current_msg)
