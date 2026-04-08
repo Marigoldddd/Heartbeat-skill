@@ -36,6 +36,13 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from collections import defaultdict
 
+try:
+    from snownlp import SnowNLP
+    HAS_SNOWNLP = True
+except Exception:
+    SnowNLP = None
+    HAS_SNOWNLP = False
+
 # ─────────────────────────────────────────────
 # 情感词表
 # ─────────────────────────────────────────────
@@ -140,12 +147,52 @@ def auto_window(messages: list[dict]) -> str:
         return "month"
 
 
+def group_by_session(messages: list[dict], gap_minutes: int) -> dict[str, list[dict]]:
+    """按会话切分：相邻两条消息间隔超过阈值即开启新 session。"""
+    valid_msgs = [m for m in messages if m.get("ts")]
+    if not valid_msgs:
+        return {}
+
+    valid_msgs = sorted(valid_msgs, key=lambda m: m.get("ts") or "")
+    sessions: dict[str, list[dict]] = {}
+
+    session_index = 1
+    current_key = f"S{session_index:04d}"
+    sessions[current_key] = [valid_msgs[0]]
+    prev_dt = datetime.fromisoformat(valid_msgs[0]["ts"])
+
+    for msg in valid_msgs[1:]:
+        cur_dt = datetime.fromisoformat(msg["ts"])
+        gap = (cur_dt - prev_dt).total_seconds() / 60
+        if gap > gap_minutes:
+            session_index += 1
+            current_key = f"S{session_index:04d}"
+            sessions[current_key] = []
+        sessions[current_key].append(msg)
+        prev_dt = cur_dt
+
+    return sessions
+
+
+def get_session_label(session_msgs: list[dict], session_key: str) -> str:
+    """session 标签使用该会话首条消息日期，便于与绘图脚本兼容。"""
+    if not session_msgs:
+        return session_key
+    first_ts = session_msgs[0].get("ts") or ""
+    if not first_ts:
+        return session_key
+    try:
+        return datetime.fromisoformat(first_ts).strftime("%Y-%m-%d")
+    except Exception:
+        return session_key
+
+
 # ─────────────────────────────────────────────
 # 维度评分函数
 # ─────────────────────────────────────────────
 
-def score_sentiment(messages: list[dict]) -> float:
-    """情感词密度评分 → 0-100。"""
+def score_sentiment_lexicon(messages: list[dict]) -> float:
+    """情感词密度评分（词典法）→ 0-100。"""
     if not messages:
         return 50.0
     total = len(messages)
@@ -162,6 +209,42 @@ def score_sentiment(messages: list[dict]) -> float:
     return max(0.0, min(100.0, score))
 
 
+def score_sentiment_snownlp(messages: list[dict]) -> float:
+    """SnowNLP 情感评分（0~1）映射到 0~100。"""
+    if not messages:
+        return 50.0
+    if not HAS_SNOWNLP:
+        return score_sentiment_lexicon(messages)
+
+    vals = []
+    for m in messages:
+        content = (m.get("content") or "").strip()
+        if not content:
+            continue
+        try:
+            polarity = float(SnowNLP(content).sentiments)
+            vals.append(max(0.0, min(1.0, polarity)))
+        except Exception:
+            continue
+
+    if not vals:
+        return 50.0
+
+    return round(sum(vals) / len(vals) * 100, 2)
+
+
+def score_sentiment(messages: list[dict], backend: str = "auto") -> float:
+    """可插拔情感评分入口。"""
+    if backend == "lexicon":
+        return score_sentiment_lexicon(messages)
+    if backend == "snownlp":
+        return score_sentiment_snownlp(messages)
+    # auto: 优先 SnowNLP，不可用时回退词典法
+    if HAS_SNOWNLP:
+        return score_sentiment_snownlp(messages)
+    return score_sentiment_lexicon(messages)
+
+
 def score_length(messages: list[dict]) -> float:
     """平均消息长度评分 → 0-100（长消息表示投入更多）。"""
     if not messages:
@@ -173,16 +256,97 @@ def score_length(messages: list[dict]) -> float:
 
 
 def score_special(messages: list[dict]) -> float:
-    """特殊行为得分 → 0-100（问题/emoji/亲昵称呼）。"""
+    """特殊行为得分 → 0-100（文本互动 + 多媒体分享 + 通话投入）。"""
     if not messages:
         return 50.0
     n = len(messages)
     q_rate    = sum(1 for m in messages if m.get("has_question")) / n
     emoji_rate = sum(1 for m in messages if m.get("has_emoji")) / n
     aff_rate   = sum(1 for m in messages if m.get("has_affection_call")) / n
-    # 各维度权重
-    raw = (q_rate * 35 + emoji_rate * 35 + aff_rate * 30)
-    return max(0.0, min(100.0, raw * 100))
+    image_rate = sum(1 for m in messages if m.get("has_image_share")) / n
+    voice_rate = sum(1 for m in messages if m.get("has_voice_msg")) / n
+    video_rate = sum(1 for m in messages if m.get("has_video_share")) / n
+    location_rate = sum(1 for m in messages if m.get("has_location_share")) / n
+    call_rate = sum(1 for m in messages if m.get("has_call")) / n
+    avg_call_min = sum((m.get("call_duration_sec") or 0) for m in messages) / 60 / n
+    call_duration_norm = min(1.0, avg_call_min / 10)  # 平均 10 分钟视作高投入
+
+    weighted_sum = (
+        q_rate * 20 +
+        emoji_rate * 20 +
+        aff_rate * 20 +
+        image_rate * 12 +
+        voice_rate * 10 +
+        video_rate * 8 +
+        location_rate * 5 +
+        call_rate * 10 +
+        call_duration_norm * 15
+    )
+    # 上式满分 120，线性映射到 0-100
+    return max(0.0, min(100.0, weighted_sum / 120 * 100))
+
+
+def score_media_engagement(messages: list[dict]) -> float:
+    """多媒体互动投入得分（图片/语音/视频/位置/通话时长）。"""
+    if not messages:
+        return 50.0
+    n = len(messages)
+    image_rate = sum(1 for m in messages if m.get("has_image_share")) / n
+    voice_rate = sum(1 for m in messages if m.get("has_voice_msg")) / n
+    video_rate = sum(1 for m in messages if m.get("has_video_share")) / n
+    location_rate = sum(1 for m in messages if m.get("has_location_share")) / n
+    call_rate = sum(1 for m in messages if m.get("has_call")) / n
+    avg_call_min = sum((m.get("call_duration_sec") or 0) for m in messages) / 60 / n
+    call_duration_norm = min(1.0, avg_call_min / 10)
+
+    weighted_sum = (
+        image_rate * 28 +
+        voice_rate * 20 +
+        video_rate * 15 +
+        location_rate * 10 +
+        call_rate * 12 +
+        call_duration_norm * 15
+    )
+    return max(0.0, min(100.0, weighted_sum))
+
+
+def parse_special_days_arg(raw: str | None) -> set[str]:
+    if not raw:
+        return set()
+    return {d.strip() for d in raw.split(",") if d.strip()}
+
+
+def parse_special_days_file(path: str | None) -> set[str]:
+    if not path:
+        return set()
+    p = Path(path)
+    if not p.exists():
+        print(f"[scorer] 警告：special days 文件不存在：{p}", file=sys.stderr)
+        return set()
+
+    text = p.read_text(encoding="utf-8").strip()
+    if not text:
+        return set()
+
+    try:
+        data = json.loads(text)
+        if isinstance(data, list):
+            return {str(x).strip() for x in data if str(x).strip()}
+    except Exception:
+        pass
+
+    days = set()
+    for line in text.splitlines():
+        s = line.strip()
+        if s:
+            days.add(s)
+    return days
+
+
+def apply_special_day_multiplier(score: float, multiplier: float) -> float:
+    """强化特殊日期上的情绪偏移：以 50 为中轴放大波动。"""
+    adjusted = 50 + (score - 50) * multiplier
+    return max(0.0, min(100.0, adjusted))
 
 
 def score_reply_speed(me_msgs: list[dict], them_msgs: list[dict],
@@ -277,7 +441,7 @@ def compute_initiative(window_msgs: list[dict]) -> tuple[float, float]:
     return me_init / total, them_init / total
 
 
-def score_window(window_msgs: list[dict]) -> dict:
+def score_window(window_msgs: list[dict], sentiment_backend: str = "auto") -> dict:
     """对单个时间窗口计算双方各维度得分并加权合成。"""
     me_msgs = [m for m in window_msgs if m.get("sender") == "me"]
     them_msgs = [m for m in window_msgs if m.get("sender") == "them"]
@@ -296,12 +460,14 @@ def score_window(window_msgs: list[dict]) -> dict:
     them_len_score = score_length(them_msgs)
 
     # 情感词
-    me_sent_score   = score_sentiment(me_msgs)
-    them_sent_score = score_sentiment(them_msgs)
+    me_sent_score   = score_sentiment(me_msgs, backend=sentiment_backend)
+    them_sent_score = score_sentiment(them_msgs, backend=sentiment_backend)
 
     # 特殊行为
     me_spe_score   = score_special(me_msgs)
     them_spe_score = score_special(them_msgs)
+    me_media_score = score_media_engagement(me_msgs)
+    them_media_score = score_media_engagement(them_msgs)
 
     def weighted(init, reply, length, sent, special):
         return (
@@ -339,11 +505,13 @@ def score_window(window_msgs: list[dict]) -> dict:
             "me_length":     round(me_len_score, 1),
             "me_sentiment":  round(me_sent_score, 1),
             "me_special":    round(me_spe_score, 1),
+            "me_media":      round(me_media_score, 1),
             "them_initiative": round(them_initiative_score, 1),
             "them_reply":      round(them_reply_score, 1),
             "them_length":     round(them_len_score, 1),
             "them_sentiment":  round(them_sent_score, 1),
             "them_special":    round(them_spe_score, 1),
+            "them_media":      round(them_media_score, 1),
         }
     }
 
@@ -369,8 +537,19 @@ def main():
     parser = argparse.ArgumentParser(description="好感度双向评分引擎")
     parser.add_argument("--input",  required=True, help="chat_parser.py 输出的 JSON 文件路径")
     parser.add_argument("--window", default="auto",
-                        choices=["auto", "day", "week", "month"],
+                        choices=["auto", "day", "week", "month", "session"],
                         help="时间窗口粒度（默认 auto：按记录跨度自动选择）")
+    parser.add_argument("--session-gap-minutes", type=int, default=180,
+                        help="仅在 window=session 时生效：超过该静默分钟数切分为新会话（默认 180）")
+    parser.add_argument("--sentiment-backend", default="auto",
+                        choices=["auto", "lexicon", "snownlp"],
+                        help="情感评分后端：auto(默认)/lexicon/snownlp")
+    parser.add_argument("--special-days", default="",
+                        help="特殊日期列表（逗号分隔，YYYY-MM-DD），如 2026-02-14,2026-12-31")
+    parser.add_argument("--special-days-file", default=None,
+                        help="特殊日期文件路径（JSON 数组或每行一个日期）")
+    parser.add_argument("--special-day-multiplier", type=float, default=1.2,
+                        help="特殊日期情绪波动放大倍数（默认 1.2）")
     parser.add_argument("--smooth", action="store_true", default=True,
                         help="是否对曲线做 EMA 平滑（默认开启）")
     parser.add_argument("--no-smooth", dest="smooth", action="store_false")
@@ -381,13 +560,28 @@ def main():
 
     window = args.window if args.window != "auto" else auto_window(messages)
     print(f"[scorer] 使用时间窗口：{window}", file=sys.stderr)
+    if args.sentiment_backend == "snownlp" and not HAS_SNOWNLP:
+        print("[scorer] 未检测到 SnowNLP，自动回退 lexicon 后端", file=sys.stderr)
+    elif args.sentiment_backend == "auto":
+        backend_used = "snownlp" if HAS_SNOWNLP else "lexicon"
+        print(f"[scorer] 情感后端：{backend_used}", file=sys.stderr)
+    else:
+        print(f"[scorer] 情感后端：{args.sentiment_backend}", file=sys.stderr)
+
+    special_days = parse_special_days_arg(args.special_days)
+    special_days |= parse_special_days_file(args.special_days_file)
+    if special_days:
+        print(f"[scorer] 特殊日期加权：{len(special_days)} 天，倍率 {args.special_day_multiplier}", file=sys.stderr)
 
     # 按窗口分组
-    groups: dict[str, list[dict]] = defaultdict(list)
-    for msg in messages:
-        key = get_window_key(msg.get("ts") or "", window)
-        if key:
-            groups[key].append(msg)
+    if window == "session":
+        groups = group_by_session(messages, args.session_gap_minutes)
+    else:
+        groups: dict[str, list[dict]] = defaultdict(list)
+        for msg in messages:
+            key = get_window_key(msg.get("ts") or "", window)
+            if key:
+                groups[key].append(msg)
 
     if not groups:
         print("错误：没有可分析的时间窗口，请检查消息的时间格式。", file=sys.stderr)
@@ -398,18 +592,37 @@ def main():
     results = []
     for key in windows_sorted:
         w_msgs = groups[key]
-        scores = score_window(w_msgs)
+        scores = score_window(w_msgs, sentiment_backend=args.sentiment_backend)
+        label = get_session_label(w_msgs, key) if window == "session" else get_window_label(key, window)
+
+        window_days = set()
+        for m in w_msgs:
+            ts = m.get("ts") or ""
+            if len(ts) >= 10:
+                window_days.add(ts[:10])
+        has_special_day = bool(window_days & special_days)
+
+        me_value = scores["me"]
+        them_value = scores["them"]
+        if has_special_day and args.special_day_multiplier > 0:
+            me_value = round(apply_special_day_multiplier(me_value, args.special_day_multiplier), 1)
+            them_value = round(apply_special_day_multiplier(them_value, args.special_day_multiplier), 1)
+
         results.append({
             "window": key,
-            "label": get_window_label(key, window),
-            "me":   scores["me"],
-            "them": scores["them"],
+            "label": label,
+            "me":   me_value,
+            "them": them_value,
             "me_msg_count":    scores["me_msg_count"],
             "them_msg_count":  scores["them_msg_count"],
             "me_initiative":   scores["me_initiative"],
             "them_initiative": scores["them_initiative"],
             "events": [],
-            "raw": scores["raw"],
+            "raw": {
+                **scores["raw"],
+                "has_special_day": has_special_day,
+                "special_day_multiplier": args.special_day_multiplier if has_special_day else 1.0,
+            },
         })
 
     # EMA 平滑

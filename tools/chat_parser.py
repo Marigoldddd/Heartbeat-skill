@@ -43,10 +43,34 @@ from html.parser import HTMLParser
 # ─────────────────────────────────────────────
 
 SKIP_PATTERNS = [
-    "[图片]", "[文件]", "[撤回了一条消息]", "[语音]", "[视频]",
-    "[表情]", "[位置]", "[名片]", "[链接]", "[红包]", "[转账]",
-    "[Sticker]", "<img", "<video", "<audio",
-    "[Photo]", "[Video]", "[File]", "[Recalled]",
+    "[文件]", "[撤回了一条消息]", "[名片]", "[链接]", "[红包]", "[转账]",
+    "[Sticker]", "[File]", "[Recalled]",
+]
+
+MEDIA_SIGNAL_PATTERNS = {
+    "has_image_share": ["[图片]", "[Photo]", "<img"],
+    "has_voice_msg": ["[语音]", "<audio", "语音消息"],
+    "has_video_share": ["[视频]", "[Video]", "<video"],
+    "has_location_share": ["[位置]", "位置共享", "共享位置"],
+    "has_call": ["语音通话", "视频通话", "通话时长", "通话"],
+}
+
+CALL_DURATION_PATTERNS = [
+    re.compile(r"(?:(?:通话时长|语音通话|视频通话)[:：\s]*)?(\d{1,2}):(\d{2})(?::(\d{2}))?"),
+    re.compile(r"(\d{1,2})\s*分(?:钟)?\s*(\d{1,2})\s*秒"),
+    re.compile(r"(\d{1,2})\s*分(?:钟)?"),
+]
+
+PII_PATTERNS = [
+    (re.compile(r"(?<!\d)1[3-9]\d{9}(?!\d)"), "[手机号]"),
+    (re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}"), "[邮箱]"),
+    (re.compile(r"(?<!\d)(?:\d{17}[\dXx]|\d{15})(?!\d)"), "[证件号]"),
+    (re.compile(r"(?<!\d)\d{16,19}(?!\d)"), "[银行卡号]"),
+    (re.compile(r"(?:微信号|wxid)[:：\s]*[A-Za-z][A-Za-z0-9_-]{4,}"), "[微信号]"),
+    (re.compile(r"(?:QQ|qq|QQ号)[:：\s]*\d{5,12}"), "[QQ号]"),
+    (re.compile(r"(?:¥|￥|RMB\s*|rmb\s*)\d+(?:\.\d{1,2})?"), "[金额]"),
+    (re.compile(r"\d+(?:\.\d{1,2})?\s*(?:元|块|万元|万|w)(?![\u4e00-\u9fa5A-Za-z0-9_])"), "[金额]"),
+    (re.compile(r"[\u4e00-\u9fa5]{2,}(?:省|市|区|县|镇|乡|街道|路|大道)[^，。；\n]{0,18}(?:号|栋|室|单元)?"), "[地点]"),
 ]
 
 EMOJI_PATTERN = re.compile(
@@ -302,16 +326,62 @@ def parse_ts(ts_str: str) -> str | None:
         return None
 
 
-def normalize(raw_msgs: list[dict], me_name: str, them_name: str) -> list[dict]:
+def mask_sensitive_text(text: str) -> tuple[str, int]:
+    """本地脱敏：在送往外部语义层前替换常见隐私信息。"""
+    masked = text
+    replaced = 0
+    for pattern, token in PII_PATTERNS:
+        masked, n = pattern.subn(token, masked)
+        replaced += n
+    return masked, replaced
+
+
+def extract_call_duration_seconds(text: str) -> int:
+    """从系统提示中提取通话时长（秒），提取失败返回 0。"""
+    for pattern in CALL_DURATION_PATTERNS:
+        m = pattern.search(text)
+        if not m:
+            continue
+        parts = [p for p in m.groups() if p is not None]
+        try:
+            nums = [int(x) for x in parts]
+        except ValueError:
+            continue
+
+        if len(nums) == 3:  # hh:mm:ss or mm:ss with extra group
+            h, mm, ss = nums
+            return h * 3600 + mm * 60 + ss
+        if len(nums) == 2:
+            mm, ss = nums
+            return mm * 60 + ss
+        if len(nums) == 1:
+            mm = nums[0]
+            return mm * 60
+    return 0
+
+
+def normalize(raw_msgs: list[dict], me_name: str, them_name: str, mask_sensitive: bool = False) -> tuple[list[dict], int]:
     """将原始消息列表规格化为统一输出格式，并按时间排序。"""
     result = []
+    total_masked = 0
     for msg in raw_msgs:
         content = msg.get("content", "").strip()
         if not content:
             continue
+
+        if mask_sensitive:
+            content, replaced = mask_sensitive_text(content)
+            total_masked += replaced
+
         # 过滤系统消息
         if any(pat in content for pat in SKIP_PATTERNS):
             continue
+
+        media_flags = {
+            key: any(token in content for token in tokens)
+            for key, tokens in MEDIA_SIGNAL_PATTERNS.items()
+        }
+        call_duration_sec = extract_call_duration_seconds(content) if media_flags["has_call"] else 0
 
         raw_sender = msg.get("raw_sender", "")
         if me_name and me_name in raw_sender:
@@ -341,6 +411,12 @@ def normalize(raw_msgs: list[dict], me_name: str, them_name: str) -> list[dict]:
             "has_question": has_question,
             "has_emoji": has_emoji,
             "has_affection_call": has_affection_call,
+            "has_image_share": media_flags["has_image_share"],
+            "has_voice_msg": media_flags["has_voice_msg"],
+            "has_video_share": media_flags["has_video_share"],
+            "has_location_share": media_flags["has_location_share"],
+            "has_call": media_flags["has_call"],
+            "call_duration_sec": call_duration_sec,
             "sentiment_raw": None,
         })
 
@@ -358,7 +434,7 @@ def normalize(raw_msgs: list[dict], me_name: str, them_name: str) -> list[dict]:
         return m["ts"] or ""
     result.sort(key=sort_key)
 
-    return result
+    return result, total_masked
 
 
 # ─────────────────────────────────────────────
@@ -392,6 +468,8 @@ def main():
     parser.add_argument("--format", default=None,
                         choices=list(FORMAT_MAP.keys()),
                         help="强制指定格式（默认按文件扩展名自动判断）")
+    parser.add_argument("--mask-sensitive", action="store_true",
+                        help="启用本地脱敏（手机号/金额/地址等替换为占位符）")
     parser.add_argument("--output", default=None, help="输出 JSON 路径（默认 stdout）")
     args = parser.parse_args()
 
@@ -404,7 +482,7 @@ def main():
     parse_fn = FORMAT_MAP[fmt]
 
     raw = parse_fn(str(file_path), args.me, args.them)
-    messages = normalize(raw, args.me, args.them)
+    messages, masked_count = normalize(raw, args.me, args.them, mask_sensitive=args.mask_sensitive)
 
     if not messages:
         print("警告：未解析到任何消息，请检查 --me / --them 名字是否与文件一致。", file=sys.stderr)
@@ -416,6 +494,8 @@ def main():
         me_count = sum(1 for m in messages if m["sender"] == "me")
         them_count = sum(1 for m in messages if m["sender"] == "them")
         print(f"✅ 解析完成：共 {len(messages)} 条消息（我方 {me_count} 条 / 对方 {them_count} 条）")
+        if args.mask_sensitive:
+            print(f"   脱敏替换：{masked_count} 处")
         print(f"   输出：{args.output}")
     else:
         print(output_json)

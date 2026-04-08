@@ -198,56 +198,35 @@ python3 "${CLAUDE_SKILL_DIR:-${CODEX_HOME:-$HOME/.codex}/skills/heartbeat}/tools
 python3 "${CLAUDE_SKILL_DIR:-${CODEX_HOME:-$HOME/.codex}/skills/heartbeat}/tools/sentiment_scorer.py" \
   --input /tmp/heartbeat_parsed.json \
   --window auto \
+  --sentiment-backend auto \
+  --special-days "2026-02-14,2026-12-31" \
+  --special-day-multiplier 1.2 \
   --output /tmp/rule_scores.json
 ```
 
+说明：
+- `--sentiment-backend auto`：优先使用 SnowNLP，若不可用自动回退词典法
+- 可显式指定 `lexicon` 或 `snownlp`
+- 可选 `--special-days` / `--special-days-file` 传入节假日或纪念日
+- 特殊日期会放大情绪偏移（以 50 为中轴），默认倍率 `1.2`
+
 ---
 
-#### 3b. 按时间窗口分组，准备 CC 分析数据
+#### 3b. 按时间窗口分组，准备 CC 分析数据（含 Token 防爆）
 
 ```bash
-python3 - << 'EOF'
-import json
-from pathlib import Path
-from datetime import datetime
-from collections import defaultdict
-
-parsed = json.loads(Path("/tmp/heartbeat_parsed.json").read_text())
-rule   = json.loads(Path("/tmp/rule_scores.json").read_text())
-
-# 按规则层的窗口划分，将消息分组
-windows = {r["window"]: r["label"] for r in rule}
-
-# 对每条消息确定所属窗口
-def get_window(ts, w_labels):
-    for wk, lbl in w_labels.items():
-        if ts and ts[:10] >= lbl[:10]:
-            last = wk
-    return last if 'last' in dir() else list(w_labels.keys())[0]
-
-groups = defaultdict(list)
-for msg in parsed:
-    ts = msg.get("ts") or ""
-    # 找最近窗口（简单：按 label date 比较）
-    best = None
-    for r in rule:
-        if ts[:10] >= r["label"][:10]:
-            best = r["window"]
-    if best:
-        groups[best].append({
-            "sender": msg["sender"],
-            "content": msg["content"],
-            "ts": ts,
-        })
-
-data = {"windows": [
-    {"window": r["window"], "label": r["label"], "messages": groups.get(r["window"], [])}
-    for r in rule
-]}
-Path("/tmp/heartbeat_windows.json").write_text(json.dumps(data, ensure_ascii=False, indent=2))
-print(f"已生成 {len(rule)} 个时间窗口分组 → /tmp/heartbeat_windows.json")
-EOF
+python3 "${CLAUDE_SKILL_DIR:-${CODEX_HOME:-$HOME/.codex}/skills/heartbeat}/tools/cc_window_preparer.py" \
+  --parsed /tmp/heartbeat_parsed.json \
+  --rule /tmp/rule_scores.json \
+  --max-window-tokens 3200 \
+  --headroom-tokens 400 \
+  --output /tmp/heartbeat_windows.json
 ```
+
+说明：
+- 脚本会先估算每个窗口 token 体量
+- 当窗口超限时，自动抽取关键对话（深夜、情绪波动、长消息、最近消息）
+- 输出文件中 `meta.truncated=true` 表示该窗口已触发抽样降级
 
 ---
 

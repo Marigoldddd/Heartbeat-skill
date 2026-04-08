@@ -266,6 +266,10 @@ def generate_report(scores: list[dict], parsed: list[dict],
     longer_msg_them = sum(s["raw"].get("them_length", 50) for s in scores) / len(scores)
     more_verbose = me_name if longer_msg_me >= longer_msg_them else them_name
 
+    media_me = sum(s["raw"].get("me_media", 50) for s in scores) / len(scores)
+    media_them = sum(s["raw"].get("them_media", 50) for s in scores) / len(scores)
+    more_media = me_name if media_me >= media_them else them_name
+
     lines += [
         "---",
         "",
@@ -277,10 +281,12 @@ def generate_report(scores: list[dict], parsed: list[dict],
         f"| 主动性占比 | {me_total_initiative}% | {them_total_initiative}% |",
         f"| 回复速度评分 | {me_avg_reply} | {them_avg_reply} |",
         f"| 情感表达丰富度 | {round(more_expressive_me, 1)} | {round(more_expressive_them, 1)} |",
+        f"| 生活分享/多媒体投入 | {round(media_me, 1)} | {round(media_them, 1)} |",
         f"| 单句消息丰富度 | {round(longer_msg_me, 1)} | {round(longer_msg_them, 1)} |",
         "",
         f"- **更主动的一方**：{more_active}（更多主动发起对话）",
         f"- **情感表达更丰富**：{more_expressive}（更多正向情感词、emoji、亲昵称呼）",
+        f"- **生活分享更积极**：{more_media}（图片/语音/视频/位置/通话等投入更高）",
         f"- **消息内容更丰富**：{more_verbose}（平均单句消息更长、更详细）",
         "",
         "---",
